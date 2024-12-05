@@ -9,6 +9,7 @@
 #include "lvgl.h"
 
 static lv_obj_t *meter;
+static lv_obj_t *calendar;
 static lv_obj_t * btn;
 static lv_disp_rot_t rotation = LV_DISP_ROT_NONE;
 
@@ -62,25 +63,31 @@ void example_lvgl_demo_ui(lv_disp_t *disp)
     lv_meter_set_indicator_end_value(meter, indic, 100);
 
     /*Add a needle line indicator*/
-    indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREY), -10);
-
-    btn = lv_btn_create(scr);
-    lv_obj_t * lbl = lv_label_create(btn);
-    lv_label_set_text_static(lbl, LV_SYMBOL_REFRESH" ROTATE");
-    lv_obj_align(btn, LV_ALIGN_BOTTOM_LEFT, 30, -30);
-    /*Button event*/
-    lv_obj_add_event_cb(btn, btn_cb, LV_EVENT_CLICKED, disp);
-
-    /*Create an animation to set the value*/
-    lv_anim_t a;
-    lv_anim_init(&a);
-    lv_anim_set_exec_cb(&a, set_value);
-    lv_anim_set_var(&a, indic);
-    lv_anim_set_values(&a, 0, 100);
-    lv_anim_set_time(&a, 2000);
-    lv_anim_set_repeat_delay(&a, 100);
-    lv_anim_set_playback_time(&a, 500);
-    lv_anim_set_playback_delay(&a, 100);
-    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_start(&a);
+    indic = lv_meter_add_needle_line(meter, scale, 4, lv_palette_main(LV_PALETTE_GREEN), -10);
 }
+
+//chang UI here
+void example_lvgl_demo_ui2(lv_disp_t *disp) {
+    lv_color16_t c;
+    c.full = 0x5345;
+    disp->bg_color = c;
+    lv_obj_t *scr = lv_disp_get_scr_act(disp);
+    calendar = lv_calendar_create(scr);
+    // lv_obj_remove_style_all(calendar);
+    lv_obj_center(calendar);
+    lv_obj_set_size(calendar, 170, 170);
+
+    //setdata
+    lv_calendar_set_today_date(calendar,2024,9,17);
+    lv_calendar_set_showed_date(calendar,2024,9);
+
+    static lv_style_t style;
+    lv_style_init(&style);
+    // lv_style_set_radius(&style, LV_RADIUS_CIRCLE);
+    lv_style_value_t v;
+    v.color.full = 0x5345;
+    lv_style_set_prop(&style,LV_STYLE_BORDER_COLOR,v);
+    // LV_STYLE_BORDER_COLOR
+    lv_obj_add_style(calendar, &style, 0);
+}
+    
