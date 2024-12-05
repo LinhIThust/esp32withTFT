@@ -63,7 +63,7 @@ static const char *TAG = "example";
 static SemaphoreHandle_t lvgl_mux = NULL;
 
 extern void example_lvgl_demo_ui(lv_disp_t *disp);
-extern void example_lvgl_demo_ui2(lv_disp_t *disp);
+extern void example_lvgl_calender(lv_disp_t *disp, const lv_calendar_date_t date);
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
     lv_disp_drv_t *disp_driver = (lv_disp_drv_t *)user_ctx;
@@ -145,6 +145,28 @@ static void example_lvgl_port_task(void *arg)
         } else if (task_delay_ms < EXAMPLE_LVGL_TASK_MIN_DELAY_MS) {
             task_delay_ms = EXAMPLE_LVGL_TASK_MIN_DELAY_MS;
         }
+        vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
+    }
+}
+static void example_lvgl_display_task(void *arg) {
+    uint32_t task_delay_ms = EXAMPLE_LVGL_TASK_MAX_DELAY_MS;
+    static lv_obj_t *calendar;
+    lv_calendar_date_t date = {2024,12,5};
+    lv_disp_t *disp  = (lv_disp_t*)arg;
+    lv_obj_t *scr = lv_disp_get_scr_act(disp);
+    calendar = lv_calendar_create(scr);
+
+    lv_obj_center(calendar);
+    lv_obj_set_size(calendar, 170, 170);
+
+    while (1) {
+        ESP_LOGI(TAG, "example_lvgl_display_task");
+        if (example_lvgl_lock(-1)) {
+            lv_calendar_set_today_date(calendar,date.year,date.month,date.day);
+            lv_calendar_set_showed_date(calendar,date.year,date.month);
+            date.day++;
+            example_lvgl_unlock();
+        }    
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
 }
@@ -242,12 +264,5 @@ void app_main(void)
     assert(lvgl_mux);
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
-
-    ESP_LOGI(TAG, "Display LVGL Meter Widget");
-    // Lock the mutex due to the LVGL APIs are not thread-safe
-    if (example_lvgl_lock(-1)) {
-        example_lvgl_demo_ui2(disp);
-        // Release the mutex
-        example_lvgl_unlock();
-    }
+    xTaskCreate(example_lvgl_display_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
 }
