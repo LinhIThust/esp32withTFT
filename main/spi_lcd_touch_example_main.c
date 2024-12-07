@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/uart.h"
 #include "freertos/semphr.h"
 #include "esp_timer.h"
 #include "esp_lcd_panel_io.h"
@@ -157,7 +158,7 @@ static void example_lvgl_display_task(void *arg) {
     calendar = lv_calendar_create(scr);
 
     lv_obj_center(calendar);
-    lv_obj_set_size(calendar, 170, 170);
+    lv_obj_set_size(calendar, 240, 240);
 
     while (1) {
         ESP_LOGI(TAG, "example_lvgl_display_task");
@@ -165,14 +166,47 @@ static void example_lvgl_display_task(void *arg) {
             lv_calendar_set_today_date(calendar,date.year,date.month,date.day);
             lv_calendar_set_showed_date(calendar,date.year,date.month);
             date.day++;
+            if(date.day >31) date.day =1;
             example_lvgl_unlock();
         }    
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
 }
 
+#define UART_NUM UART_NUM_1 // Use UART1
+#define TXD_PIN  (GPIO_NUM_17) // Adjust based on your setup
+#define RXD_PIN  (GPIO_NUM_16) // Adjust based on your setup
+#define BUF_SIZE 1024
+// UART task
+static void uart_task(void *arg) {
+    uint8_t data[BUF_SIZE];
+
+    while (1) {
+        // Read data from the UART
+        int len = uart_read_bytes(UART_NUM, data, BUF_SIZE - 1, pdMS_TO_TICKS(1000));
+        if (len > 0) {
+            data[len] = '\0'; // Null-terminate the string
+            ESP_LOGI(TAG, "Uart_task Received: %s", data);
+        }
+    }
+}
+
 void app_main(void)
 {
+        // UART configuration
+    uart_config_t uart_config = {
+        .baud_rate = 115200,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+    };
+
+    // Install UART driver
+    ESP_ERROR_CHECK(uart_driver_install(UART_NUM, BUF_SIZE * 2, 0, 0, NULL, 0));
+    ESP_ERROR_CHECK(uart_param_config(UART_NUM, &uart_config));
+    ESP_ERROR_CHECK(uart_set_pin(UART_NUM, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+
     static lv_disp_draw_buf_t disp_buf; // contains internal graphic buffer(s) called draw buffer(s)
     static lv_disp_drv_t disp_drv;      // contains callback functions
 
@@ -265,4 +299,6 @@ void app_main(void)
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
     xTaskCreate(example_lvgl_display_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    xTaskCreate(uart_task, "uart_task", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+
 }
