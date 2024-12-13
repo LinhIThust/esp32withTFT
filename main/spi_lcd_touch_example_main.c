@@ -18,7 +18,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "lvgl.h"
-
+#include "aaa.c"
 #include "esp_lcd_gc9a01.h"
 
 static const char *TAG = "example";
@@ -173,6 +173,24 @@ static void example_lvgl_display_task(void *arg) {
     }
 }
 
+static void example_lvgl_display_img_task(void *arg) {
+    uint32_t task_delay_ms = 10;
+    lv_disp_t *disp  = (lv_disp_t*)arg;
+    lv_obj_t *scr = lv_disp_get_scr_act(disp);
+    lv_obj_t *img = lv_img_create(scr);
+
+    while (1) {
+        if (example_lvgl_lock(-1)) {
+            su.header.h++;
+            if(su.header.h > 240) su.header.h =0;
+            lv_img_set_src(img, &su);
+            lv_scr_load(scr);
+            example_lvgl_unlock();
+        }    
+        vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
+    }
+}
+
 #define UART_NUM UART_NUM_1 // Use UART1
 #define TXD_PIN  (GPIO_NUM_17) // Adjust based on your setup
 #define RXD_PIN  (GPIO_NUM_16) // Adjust based on your setup
@@ -298,7 +316,8 @@ void app_main(void)
     assert(lvgl_mux);
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
-    xTaskCreate(example_lvgl_display_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    // xTaskCreate(example_lvgl_display_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
     xTaskCreate(uart_task, "uart_task", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
-
+    xTaskCreate(example_lvgl_display_img_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
+    
 }
