@@ -15,7 +15,8 @@ from typing import *
 from decimal import Decimal, ROUND_HALF_DOWN
 
 from PIL import Image
-
+import serial
+import time
 
 def get_color_from_palette(palette, index):
     return [palette[3 * index + i] for i in range(3)]
@@ -171,7 +172,22 @@ class Converter(object):
         # Revert the original image if it was converted to indexed
         if palette_size:
             self.img.paste(img_tmp)
+        # print(self.d_out)
+        self.send()
 
+    def send(self):
+        data_to_send = bytearray(self.d_out)
+        ser = serial.Serial("COM4", 921600, timeout=1)
+        time.sleep(2)  # Allow time for initialization
+        print(f"Sending {len(data_to_send)} bytes...")
+
+        # Send data over UART
+        ser.write(data_to_send)
+
+        print("Data sent successfully!")
+
+        # Close the serial port
+        ser.close()
     def format_to_c_array(self) -> AnyStr:
         c_array = ""
         i = 0
