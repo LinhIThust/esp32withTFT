@@ -18,7 +18,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "lvgl.h"
-#include "aaa.c"
 #include "esp_lcd_gc9a01.h"
 
 static const char *TAG = "example";
@@ -60,7 +59,8 @@ static const char *TAG = "example";
 #define EXAMPLE_LVGL_TASK_MIN_DELAY_MS 1
 #define EXAMPLE_LVGL_TASK_STACK_SIZE   (4 * 1024)
 #define EXAMPLE_LVGL_TASK_PRIORITY     2
-
+LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t su_map[115200];
+bool flag_new_data =false;
 static SemaphoreHandle_t lvgl_mux = NULL;
 
 extern void example_lvgl_demo_ui(lv_disp_t *disp);
@@ -179,12 +179,22 @@ static void example_lvgl_display_img_task(void *arg) {
     lv_obj_t *scr = lv_disp_get_scr_act(disp);
     lv_obj_t *img = lv_img_create(scr);
 
+    lv_img_dsc_t su = {
+        .header.always_zero = 0,
+        .header.w = 240,
+        .header.h = 240,
+        .data_size = 57600 * LV_COLOR_SIZE / 8,
+        .header.cf = LV_IMG_CF_TRUE_COLOR,
+        .data = su_map,
+    };
     while (1) {
         if (example_lvgl_lock(-1)) {
-            su.header.h++;
-            if(su.header.h > 240) su.header.h =0;
-            lv_img_set_src(img, &su);
-            lv_scr_load(scr);
+            if(flag_new_data ==true){
+                ESP_LOGI(TAG, "UPDATE IMAGE");
+                lv_img_set_src(img, &su);
+                lv_scr_load(scr);
+                flag_new_data = false;
+            }
             example_lvgl_unlock();
         }    
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
@@ -201,10 +211,12 @@ static void uart_task(void *arg) {
 
     while (1) {
         // Read data from the UART
-        int len = uart_read_bytes(UART_NUM, data, BUF_SIZE - 1, pdMS_TO_TICKS(1000));
+        int len = uart_read_bytes(UART_NUM, su_map, sizeof(su_map), pdMS_TO_TICKS(1000));
         if (len > 0) {
-            data[len] = '\0'; // Null-terminate the string
-            ESP_LOGI(TAG, "Uart_task Received: %s", data);
+            // data[len] = '\0'; // Null-terminate the string
+            ESP_LOGI(TAG, "Uart_task Received: %d", len);
+            // su_map[0] = 0x11;
+            flag_new_data = true;
         }
     }
 }
@@ -213,7 +225,7 @@ void app_main(void)
 {
         // UART configuration
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = 921600,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
