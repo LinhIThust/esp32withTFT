@@ -63,8 +63,6 @@ LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t su_map[115200];
 bool flag_new_data =false;
 static SemaphoreHandle_t lvgl_mux = NULL;
 
-extern void example_lvgl_demo_ui(lv_disp_t *disp);
-extern void example_lvgl_calender(lv_disp_t *disp, const lv_calendar_date_t date);
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
     lv_disp_drv_t *disp_driver = (lv_disp_drv_t *)user_ctx;
@@ -83,34 +81,6 @@ static void example_lvgl_flush_cb(lv_disp_drv_t *drv, const lv_area_t *area, lv_
     esp_lcd_panel_draw_bitmap(panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
 }
 
-/* Rotate display and touch, when rotated screen in LVGL. Called when driver parameters are updated. */
-static void example_lvgl_port_update_callback(lv_disp_drv_t *drv)
-{
-    esp_lcd_panel_handle_t panel_handle = (esp_lcd_panel_handle_t) drv->user_data;
-
-    switch (drv->rotated) {
-    case LV_DISP_ROT_NONE:
-        // Rotate LCD display
-        esp_lcd_panel_swap_xy(panel_handle, false);
-        esp_lcd_panel_mirror(panel_handle, true, false);
-        break;
-    case LV_DISP_ROT_90:
-        // Rotate LCD display
-        esp_lcd_panel_swap_xy(panel_handle, true);
-        esp_lcd_panel_mirror(panel_handle, true, true);
-        break;
-    case LV_DISP_ROT_180:
-        // Rotate LCD display
-        esp_lcd_panel_swap_xy(panel_handle, false);
-        esp_lcd_panel_mirror(panel_handle, false, true);
-        break;
-    case LV_DISP_ROT_270:
-        // Rotate LCD display
-        esp_lcd_panel_swap_xy(panel_handle, true);
-        esp_lcd_panel_mirror(panel_handle, false, false);
-        break;
-    }
-}
 static void example_increase_lvgl_tick(void *arg)
 {
     /* Tell LVGL how many milliseconds has elapsed */
@@ -146,29 +116,6 @@ static void example_lvgl_port_task(void *arg)
         } else if (task_delay_ms < EXAMPLE_LVGL_TASK_MIN_DELAY_MS) {
             task_delay_ms = EXAMPLE_LVGL_TASK_MIN_DELAY_MS;
         }
-        vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
-    }
-}
-static void example_lvgl_display_task(void *arg) {
-    uint32_t task_delay_ms = EXAMPLE_LVGL_TASK_MAX_DELAY_MS;
-    static lv_obj_t *calendar;
-    lv_calendar_date_t date = {2024,12,5};
-    lv_disp_t *disp  = (lv_disp_t*)arg;
-    lv_obj_t *scr = lv_disp_get_scr_act(disp);
-    calendar = lv_calendar_create(scr);
-
-    lv_obj_center(calendar);
-    lv_obj_set_size(calendar, 240, 240);
-
-    while (1) {
-        ESP_LOGI(TAG, "example_lvgl_display_task");
-        if (example_lvgl_lock(-1)) {
-            lv_calendar_set_today_date(calendar,date.year,date.month,date.day);
-            lv_calendar_set_showed_date(calendar,date.year,date.month);
-            date.day++;
-            if(date.day >31) date.day =1;
-            example_lvgl_unlock();
-        }    
         vTaskDelay(pdMS_TO_TICKS(task_delay_ms));
     }
 }
@@ -211,7 +158,7 @@ static void uart_task(void *arg) {
 
     while (1) {
         // Read data from the UART
-        int len = uart_read_bytes(UART_NUM, su_map, sizeof(su_map), pdMS_TO_TICKS(1000));
+        int len = uart_read_bytes(UART_NUM, su_map, sizeof(su_map), pdMS_TO_TICKS(100));
         if (len > 0) {
             // data[len] = '\0'; // Null-terminate the string
             ESP_LOGI(TAG, "Uart_task Received: %d", len);
@@ -223,7 +170,7 @@ static void uart_task(void *arg) {
 
 void app_main(void)
 {
-        // UART configuration
+    // UART configuration
     uart_config_t uart_config = {
         .baud_rate = 921600,
         .data_bits = UART_DATA_8_BITS,
@@ -309,7 +256,7 @@ void app_main(void)
     disp_drv.hor_res = EXAMPLE_LCD_H_RES;
     disp_drv.ver_res = EXAMPLE_LCD_V_RES;
     disp_drv.flush_cb = example_lvgl_flush_cb;
-    disp_drv.drv_update_cb = example_lvgl_port_update_callback;
+    // disp_drv.drv_update_cb = example_lvgl_port_update_callback;
     disp_drv.draw_buf = &disp_buf;
     disp_drv.user_data = panel_handle;
     lv_disp_t *disp = lv_disp_drv_register(&disp_drv);
@@ -328,7 +275,6 @@ void app_main(void)
     assert(lvgl_mux);
     ESP_LOGI(TAG, "Create LVGL task");
     xTaskCreate(example_lvgl_port_task, "LVGL", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
-    // xTaskCreate(example_lvgl_display_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
     xTaskCreate(uart_task, "uart_task", EXAMPLE_LVGL_TASK_STACK_SIZE, NULL, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
     xTaskCreate(example_lvgl_display_img_task, "TFT", EXAMPLE_LVGL_TASK_STACK_SIZE, disp, EXAMPLE_LVGL_TASK_PRIORITY, NULL);
     
