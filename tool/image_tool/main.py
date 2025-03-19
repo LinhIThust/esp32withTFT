@@ -46,6 +46,21 @@ def send_data_via_uart(data, port, baudrate):
     with serial.Serial(port, baudrate, timeout=1) as ser:
         # Send the image data over UART
         ser.write(data)
+import serial
+import time
+
+def send_data_divided(data, port, baudrate):
+    chunk_size = len(data) // 1000
+
+    with serial.Serial(port, baudrate, timeout=1) as ser:
+        for i in range(1000):
+            start = i * chunk_size
+            end = start + chunk_size if i < 999 else len(data)
+            chunk = data[start:end]
+
+            ser.write(chunk)
+            print(f"Sent chunk {i+1}")
+            time.sleep(0.01)
 
 # Function to create a circular mask on the image
 def apply_circular_mask(image_path, size=(240, 240)):
@@ -125,7 +140,8 @@ class ImageViewer(QWidget):
             image_data = resize_and_convert_to_rgb565(self.image_path)
 
             # Send the image data via UART
-            send_data_via_uart(image_data,"COM4",921600)
+            # send_data_via_uart(image_data,"COM4",921600)
+            send_data_divided(image_data,"COM4",921600)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

@@ -155,15 +155,20 @@ static void example_lvgl_display_img_task(void *arg) {
 // UART task
 static void uart_task(void *arg) {
     uint8_t data[BUF_SIZE];
-
+    int total_len = 0;
     while (1) {
         // Read data from the UART
-        int len = uart_read_bytes(UART_NUM, su_map, sizeof(su_map), pdMS_TO_TICKS(100));
+        int len = uart_read_bytes(UART_NUM, su_map+total_len, sizeof(su_map), pdMS_TO_TICKS(10));
+        total_len +=len;
         if (len > 0) {
-            // data[len] = '\0'; // Null-terminate the string
-            ESP_LOGI(TAG, "Uart_task Received: %d", len);
-            // su_map[0] = 0x11;
-            flag_new_data = true;
+            if (example_lvgl_lock(-1)) {
+                // data[len] = '\0'; // Null-terminate the string
+                ESP_LOGI(TAG, "Uart_task Received: %d", len);
+                // su_map[0] = 0x11;
+                flag_new_data = true;
+                if(total_len >=115200) total_len =0;
+                example_lvgl_unlock();
+            }
         }
     }
 }
