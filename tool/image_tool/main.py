@@ -49,6 +49,12 @@ def send_data_via_uart(data, port, baudrate):
 import serial
 import time
 
+def save_array(data,var_name="data", line_length=16):
+    hex_values = [f'0x{b:02X}' for b in data]
+    lines = [', '.join(hex_values[i:i+line_length]) for i in range(0, len(hex_values), line_length)]
+    return f'unsigned char {var_name}[] = {{\n    ' + ',\n    '.join(lines) + '\n};\n\n' \
+        f'unsigned int {var_name}_size = {len(data)};'
+
 def send_data_divided(data, port, baudrate):
     chunk_size = len(data) // 1000
 
@@ -132,13 +138,15 @@ class ImageViewer(QWidget):
         time.sleep(2)
         self.send_image()
 
-
     def send_image(self):
         # Check if an image is loaded
         if self.image_path:
             # Resize the image and convert to RGB565
             image_data = resize_and_convert_to_rgb565(self.image_path)
-
+            # save_array(image_data)
+            with open("data.c", "w") as source_file:
+                source_file.write(f'#include "data.h"\n\n')
+                source_file.write(save_array(image_data, "imag.c"))
             # Send the image data via UART
             # send_data_via_uart(image_data,"COM4",921600)
             send_data_divided(image_data,"COM4",921600)
