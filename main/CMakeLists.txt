@@ -1,2 +1,2 @@
-idf_component_register(SRCS "main.c"
+idf_component_register(SRCS "image_default.c" "main.c" 
                        INCLUDE_DIRS ".")

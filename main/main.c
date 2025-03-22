@@ -19,7 +19,7 @@
 #include "esp_log.h"
 #include "lvgl.h"
 #include "esp_lcd_gc9a01.h"
-
+#include "image_default.c"
 static const char *TAG = "example";
 
 // Using SPI2 in the example
@@ -59,10 +59,9 @@ static const char *TAG = "example";
 #define EXAMPLE_LVGL_TASK_MIN_DELAY_MS 1
 #define EXAMPLE_LVGL_TASK_STACK_SIZE   (4 * 1024)
 #define EXAMPLE_LVGL_TASK_PRIORITY     2
-LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t su_map[115200];
 bool flag_new_data =false;
 static SemaphoreHandle_t lvgl_mux = NULL;
-
+extern LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST uint8_t su_map[115200];
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
     lv_disp_drv_t *disp_driver = (lv_disp_drv_t *)user_ctx;
@@ -134,6 +133,9 @@ static void example_lvgl_display_img_task(void *arg) {
         .header.cf = LV_IMG_CF_TRUE_COLOR,
         .data = su_map,
     };
+    //load default image
+    lv_img_set_src(img, &su);
+    lv_scr_load(scr);
     while (1) {
         if (example_lvgl_lock(-1)) {
             if(flag_new_data ==true){
